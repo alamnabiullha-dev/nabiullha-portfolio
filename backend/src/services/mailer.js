@@ -1,0 +1,3 @@
+import nodemailer from 'nodemailer';
+import {env} from '../config/env.js';
+export async function sendContactNotice(message){if(!env.MAIL_HOST||!env.MAIL_USER||!env.MAIL_PASSWORD||!env.MAIL_TO)return;const transporter=nodemailer.createTransport({host:env.MAIL_HOST,port:Number(env.MAIL_PORT||587),secure:Number(env.MAIL_PORT)===465,auth:{user:env.MAIL_USER,pass:env.MAIL_PASSWORD}});await transporter.sendMail({from:env.MAIL_FROM||env.MAIL_USER,to:env.MAIL_TO,replyTo:message.email,subject:`Portfolio contact: ${message.subject}`,text:`Name: ${message.name}\nEmail: ${message.email}\nOrganization: ${message.organization||'—'}\n\n${message.message}`});}

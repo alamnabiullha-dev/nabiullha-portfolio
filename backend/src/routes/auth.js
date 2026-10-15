@@ -1,0 +1,17 @@
+import {Router} from 'express';
+import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
+import {AdminUser} from '../models/index.js';
+import {env} from '../config/env.js';
+import {requireAdmin} from '../middleware/auth.js';
+const router=Router();
+const cookieOptions=(maxAge,path)=>({httpOnly:true,secure:env.NODE_ENV==='production',sameSite:env.NODE_ENV==='production'?'none':'lax',path,maxAge});
+const issue=async(user,res)=>{const access=jwt.sign({sub:user._id.toString()},env.JWT_ACCESS_SECRET,{expiresIn:'15m'});const refresh=jwt.sign({sub:user._id.toString(),jti:crypto.randomUUID()},env.JWT_REFRESH_SECRET,{expiresIn:'7d'});user.refreshHash=await bcrypt.hash(refresh,10);await user.save();res.cookie('access',access,cookieOptions(15*60*1000,'/api'));res.cookie('refresh',refresh,cookieOptions(7*24*60*60*1000,'/api/auth'));};
+router.get('/status',async(req,res)=>res.json({data:{initialized:(await AdminUser.countDocuments())>0}}));
+router.post('/setup',async(req,res,next)=>{try{if(!env.ADMIN_INIT_TOKEN||req.get('x-admin-init-token')!==env.ADMIN_INIT_TOKEN)return res.status(403).json({message:'Invalid setup token'});if(await AdminUser.exists({}))return res.status(409).json({message:'Admin setup has already been completed'});const email=String(req.body.email||'').trim().toLowerCase(),password=String(req.body.password||'');if(!/^\S+@\S+\.\S+$/.test(email)||password.length<12||password.length>128)return res.status(400).json({message:'Use a valid email and a password of at least 12 characters.'});const user=await AdminUser.create({email,passwordHash:await bcrypt.hash(password,12)});await issue(user,res);res.status(201).json({data:{email:user.email}});}catch(e){next(e);}});
+router.post('/login',async(req,res,next)=>{try{const email=String(req.body.email||'').trim().toLowerCase(),password=String(req.body.password||'');const user=await AdminUser.findOne({email});if(!user||!(await bcrypt.compare(password,user.passwordHash)))return res.status(401).json({message:'Email or password is incorrect.'});await issue(user,res);res.json({data:{email:user.email}});}catch(e){next(e);}});
+router.post('/refresh',async(req,res,next)=>{try{const token=req.cookies?.refresh;if(!token)return res.status(401).json({message:'Session expired'});const decoded=jwt.verify(token,env.JWT_REFRESH_SECRET);const user=await AdminUser.findById(decoded.sub);if(!user?.refreshHash||!(await bcrypt.compare(token,user.refreshHash)))return res.status(401).json({message:'Session expired'});await issue(user,res);res.json({data:{email:user.email}});}catch(e){if(e.name==='JsonWebTokenError'||e.name==='TokenExpiredError')return res.status(401).json({message:'Session expired'});next(e);}});
+router.post('/logout',async(req,res)=>{if(req.cookies?.refresh){try{const decoded=jwt.verify(req.cookies.refresh,env.JWT_REFRESH_SECRET);const user=await AdminUser.findById(decoded.sub);if(user?.refreshHash&&await bcrypt.compare(req.cookies.refresh,user.refreshHash)){user.refreshHash=undefined;await user.save();}}catch{/* Expired or invalid sessions are still cleared in the browser. */}}res.clearCookie('access',cookieOptions(0,'/api'));res.clearCookie('refresh',cookieOptions(0,'/api/auth'));res.json({data:{loggedOut:true}});});
+router.get('/me',requireAdmin,(req,res)=>res.json({data:{email:req.admin.email}}));
+export default router;
