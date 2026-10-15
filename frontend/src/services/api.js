@@ -9,32 +9,19 @@ const api = axios.create({
   timeout: 120000,
 });
 
-let csrfToken = '';
 let csrfPromise = null;
 
-// Fetch a CSRF token from the backend
-const getCsrfToken = async (forceRefresh = false) => {
-  if (forceRefresh) {
-    csrfToken = '';
-  }
-
-  if (csrfToken) {
-    return csrfToken;
-  }
-
+async function getCsrfToken() {
   if (!csrfPromise) {
     csrfPromise = api
-      .get('/auth/csrf', {
-        _skipCsrf: true,
-      })
+      .get('/auth/csrf', { _skipCsrf: true })
       .then((response) => {
         const token = response.data?.data?.token;
 
         if (!token) {
-          throw new Error('CSRF token was not returned by the server.');
+          throw new Error('CSRF token missing from server response.');
         }
 
-        csrfToken = token;
         return token;
       })
       .finally(() => {
@@ -43,9 +30,8 @@ const getCsrfToken = async (forceRefresh = false) => {
   }
 
   return csrfPromise;
-};
+}
 
-// Add the CSRF token to requests that modify data
 api.interceptors.request.use(async (config) => {
   const method = (config.method || 'get').toLowerCase();
 
@@ -62,39 +48,14 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Handle responses and retry a CSRF failure once
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
 
-    if (!original) {
-      return Promise.reject(error);
-    }
-
-    const isCsrfFailure =
-      error.response?.status === 403 &&
-      error.response?.data?.message ===
-      'Request validation failed. Refresh and try again.';
-
-    if (isCsrfFailure && !original._csrfRetried) {
-      original._csrfRetried = true;
-
-      try {
-        const token = await getCsrfToken(true);
-
-        original.headers = original.headers || {};
-        original.headers['X-CSRF-Token'] = token;
-
-        return api(original);
-      } catch {
-        return Promise.reject(error);
-      }
-    }
-
-    // Refresh an expired session for protected API requests.
     if (
       error.response?.status === 401 &&
+      original &&
       !original._retried &&
       !original.url?.includes('/auth/')
     ) {
@@ -104,7 +65,7 @@ api.interceptors.response.use(
         await api.post('/auth/refresh');
         return api(original);
       } catch {
-        // Preserve the original request error.
+        // Keep the original error.
       }
     }
 
@@ -112,7 +73,6 @@ api.interceptors.response.use(
   }
 );
 
-// Get a readable error message in the frontend
 export const messageOf = (error) =>
   error?.response?.data?.message ||
   error?.message ||
