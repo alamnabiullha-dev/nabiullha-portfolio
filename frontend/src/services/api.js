@@ -1,10 +1,10 @@
 
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ||
-    'http://localhost:5002/api',
+  baseURL: API_URL || 'http://localhost:5002/api',
   withCredentials: true,
   timeout: 12000,
 });
@@ -14,7 +14,14 @@ let csrfPromise = null;
 async function getCsrfToken() {
   if (!csrfPromise) {
     csrfPromise = api
+<<<<<<< Updated upstream
       .get('/auth/csrf', { _skipCsrf: true })
+=======
+      .get('/auth/csrf', {
+        _skipCsrf: true,
+        _skipAuthRefresh: true,
+      })
+>>>>>>> Stashed changes
       .then((response) => {
         const token = response.data?.data?.token;
 
@@ -57,15 +64,24 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       original &&
       !original._retried &&
+      !original._skipAuthRefresh &&
       !original.url?.includes('/auth/')
     ) {
       original._retried = true;
 
       try {
-        await api.post('/auth/refresh');
+        await api.post('/auth/refresh', null, {
+          _skipAuthRefresh: true,
+        });
+
         return api(original);
+<<<<<<< Updated upstream
       } catch {
         // Keep the original error.
+=======
+      } catch (refreshError) {
+        console.error('Authentication refresh failed:', refreshError);
+>>>>>>> Stashed changes
       }
     }
 
