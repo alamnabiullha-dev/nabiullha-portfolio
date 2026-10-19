@@ -14,14 +14,10 @@ let csrfPromise = null;
 async function getCsrfToken() {
   if (!csrfPromise) {
     csrfPromise = api
-<<<<<<< Updated upstream
-      .get('/auth/csrf', { _skipCsrf: true })
-=======
       .get('/auth/csrf', {
         _skipCsrf: true,
         _skipAuthRefresh: true,
       })
->>>>>>> Stashed changes
       .then((response) => {
         const token = response.data?.data?.token;
 
@@ -75,13 +71,8 @@ api.interceptors.response.use(
         });
 
         return api(original);
-<<<<<<< Updated upstream
       } catch {
-        // Keep the original error.
-=======
-      } catch (refreshError) {
-        console.error('Authentication refresh failed:', refreshError);
->>>>>>> Stashed changes
+        // Keep the original request error.
       }
     }
 
