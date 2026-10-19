@@ -13,9 +13,9 @@ router.get('/profile', async (req, res, next) => { try { res.json({ data: await 
 router.put('/profile', async (req, res, next) => { try { const record = await Profile.findOneAndUpdate({}, { $set: safeFields(req.body) }, { new: true, upsert: true, runValidators: true }); res.json({ data: record }); } catch (e) { next(e); } });
 router.get('/settings', async (req, res, next) => { try { res.json({ data: await WebsiteSettings.findOne().lean() || {} }); } catch (e) { next(e); } });
 router.put('/settings', async (req, res, next) => { try { const record = await WebsiteSettings.findOneAndUpdate({}, { $set: safeFields(req.body) }, { new: true, upsert: true, runValidators: true }); res.json({ data: record }); } catch (e) { next(e); } });
-/*const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024, files: 1 }, fileFilter: (req, file, cb) => { const ok = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime)|application\/pdf)$/.test(file.mimetype); cb(ok ? null : new Error('Allowed uploads: JPG, PNG, WEBP, GIF, MP4, WEBM, MOV, or PDF.'), ok); } }); */
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024, files: 1 }, fileFilter: (req, file, cb) => { const ok = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime)|application\/pdf)$/.test(file.mimetype); cb(ok ? null : new Error('Allowed uploads: JPG, PNG, WEBP, GIF, MP4, WEBM, MOV, or PDF.'), ok); } }); 
 
-const upload = multer({
+/*const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
         fileSize: 100 * 1024 * 1024, // 100 MB
@@ -44,7 +44,7 @@ const upload = multer({
             );
         }
     }
-});
+});*/
 
 router.post('/media', upload.single('file'), async (req, res, next) => { try { if (!req.file) return res.status(400).json({ message: 'Choose a file to upload.' }); if (!validFileSignature(req.file)) return res.status(400).json({ message: 'The file content does not match its declared type.' }); if (!cloudinary.config().cloud_name) return res.status(503).json({ message: 'Cloudinary is not configured on the server.' }); const resourceType = req.file.mimetype.startsWith('video/') ? 'video' : req.file.mimetype === 'application/pdf' ? 'raw' : 'image'; const folder = String(req.body.folder || 'portfolio').replace(/[^a-z0-9/_-]/gi, '').slice(0, 60) || 'portfolio'; const uploaded = await new Promise((resolve, reject) => { const stream = cloudinary.uploader.upload_stream({ folder, resource_type: resourceType }, (err, result) => err ? reject(err) : resolve(result)); Readable.from(req.file.buffer).pipe(stream); }); res.status(201).json({ data: { url: uploaded.secure_url, publicId: uploaded.public_id, resourceType: uploaded.resource_type, format: uploaded.format, bytes: uploaded.bytes } }); } catch (e) { next(e); } });
 const types = 'education|skills|projects|achievements|experiences|messages';
