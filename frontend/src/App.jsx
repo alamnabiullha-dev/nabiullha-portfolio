@@ -20,7 +20,11 @@ export default function App() {
       const response = await api.get('/public/portfolio');
       const portfolioData = response.data?.data;
 
-      if (!portfolioData) {
+      if (
+        !portfolioData ||
+        typeof portfolioData !== 'object' ||
+        Array.isArray(portfolioData)
+      ) {
         throw new Error('Invalid portfolio API response.');
       }
 
@@ -30,8 +34,10 @@ export default function App() {
 
       setError(
         err.code === 'ECONNABORTED'
-          ? 'The server is taking too long to respond. Please try again.'
-          : 'The portfolio service is unavailable right now. Please try again.'
+          ? 'The server is taking too long to respond.'
+          : err.response?.data?.message ||
+          err.message ||
+          'Unable to load the portfolio. Please try again.'
       );
     } finally {
       setLoading(false);
