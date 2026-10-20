@@ -1,10 +1,9 @@
-
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, Briefcase, Check, ChevronRight, FileText, FolderKanban, Image, LayoutDashboard, LogOut, Mail, Plus, Save, Settings, ShieldCheck, Trash2, Trophy, UserRound, Upload, Wrench, X } from 'lucide-react';
+import { Activity, BookOpen, Briefcase, Check, ChevronRight, Code2, FileText, FolderKanban, Image, LayoutDashboard, LogOut, Mail, Plus, Save, Settings, ShieldCheck, Trash2, Trophy, UserRound, Upload, Wrench, X } from 'lucide-react';
 import api, { messageOf } from '../services/api.js';
 
-const sections = [['dashboard', 'Dashboard', LayoutDashboard], ['profile', 'Profile', UserRound], ['education', 'Education', BookOpen], ['skills', 'Skills', Wrench], ['projects', 'Projects', FolderKanban], ['achievements', 'Achievements', Trophy], ['experiences', 'Experience & activities', Briefcase], ['messages', 'Messages', Mail], ['resume', 'Media & resume', Image], ['settings', 'Settings', Settings]];
+const sections = [['dashboard', 'Dashboard', LayoutDashboard], ['profile', 'Profile', UserRound], ['education', 'Education', BookOpen], ['skills', 'Skills', Wrench], ['projects', 'Projects', FolderKanban], ['leetcode', 'LeetCode', Code2], ['achievements', 'Achievements', Trophy], ['experiences', 'Experience & activities', Briefcase], ['messages', 'Messages', Mail], ['resume', 'Media & resume', Image], ['settings', 'Settings', Settings]];
 
 const configs = {
     education: { title: 'Education', fields: [['level', 'Level (college, class 12, class 10)'], ['institution', 'Institution / school'], ['degree', 'Degree / qualification'], ['field', 'Specialization'], ['board', 'Board'], ['location', 'Location'], ['period', 'Study period'], ['semester', 'Semester'], ['startYear', 'Start year'], ['endYear', 'End / passing year'], ['score', 'CGPA / marks'], ['percentage', 'Percentage'], ['description', 'Description', 'long'], ['photo', 'School / college photo', 'media'], ['order', 'Display order', 'number'], ['isPublic', 'Public', 'bool']] },
@@ -20,12 +19,12 @@ const configs = {
             ['features', 'Features (one per line)', 'list'],
             ['technologies', 'Technologies (comma separated)', 'csv'],
             ['contribution', 'My contribution', 'long'],
-            ['githubUrl', 'GitHub URL'], ['liveUrl', 'Live demo URL'],
+            ['githubUrl', 'GitHub URL'], ['liveUrl', 'Live demo / external profile URL (e.g. LeetCode)'],
             ['videoUrl', 'YouTube / external video URL'],
             ['documentationUrl', 'Documentation URL'], ['status', 'Status'],
             ['startDate', 'Start date'], ['completionDate', 'Completion date'],
             ['order', 'Display order', 'number'], ['featured', 'Featured', 'bool'],
-            ['published', 'Published', 'bool'], ['cover', 'Cover image', 'media'],
+            ['published', 'Published', 'bool'], ['cover', 'Cover image / logo', 'media'],
             ['video', 'Video file', 'media'], ['gallery', 'Screenshots', 'gallery']
         ]
     },
@@ -181,6 +180,7 @@ function AdminLayout({ user, logout, onSaved }) {
                     <Route path="education" element={<Crud resource="education" onSaved={onSaved} />} />
                     <Route path="skills" element={<Crud resource="skills" onSaved={onSaved} />} />
                     <Route path="projects" element={<Crud resource="projects" onSaved={onSaved} />} />
+                    <Route path="leetcode" element={<LeetCodeManager onSaved={onSaved} />} />
                     <Route path="achievements" element={<Crud resource="achievements" onSaved={onSaved} />} />
                     <Route path="experiences" element={<Crud resource="experiences" onSaved={onSaved} />} />
                     <Route path="messages" element={<Crud resource="messages" onSaved={onSaved} />} />
@@ -301,7 +301,11 @@ function Crud({ resource, onSaved }) {
 
     useEffect(() => { load(); }, [resource]);
 
-    const filtered = useMemo(() => items.filter(i => `${i.name || i.title || i.role || i.subject || i.email || ''}`.toLowerCase().includes(query.toLowerCase())), [items, query]);
+    const filtered = useMemo(() => items.filter(i => {
+        // LeetCode entries are managed in their own admin section.
+        if (resource === 'projects' && String(i.category || '').toLowerCase().includes('leetcode')) return false;
+        return `${i.name || i.title || i.role || i.subject || i.email || ''}`.toLowerCase().includes(query.toLowerCase());
+    }), [items, query, resource]);
 
     const remove = async id => {
         if (!window.confirm('Delete this record? This cannot be undone.')) return;
@@ -355,8 +359,141 @@ function Crud({ resource, onSaved }) {
     );
 }
 
-function RecordModal({ resource, initial, close, saved }) {
-    const fields = configs[resource].fields;
+
+const leetcodeFields = [
+    ['name', 'Profile title'],
+    ['shortDescription', 'Short description', 'long'],
+    ['description', 'Detailed description', 'long'],
+    ['liveUrl', 'LeetCode profile URL'],
+    ['cover', 'Profile screenshot / photo', 'media'],
+    ['technologies', 'Languages and topics (comma separated)', 'csv'],
+    ['order', 'Display order', 'number'],
+    ['published', 'Publish on portfolio', 'bool']
+];
+
+function LeetCodeManager({ onSaved }) {
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [editing, setEditing] = useState(null);
+    const [query, setQuery] = useState('');
+
+    const load = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await api.get('/admin/projects');
+            const records = Array.isArray(response.data?.data) ? response.data.data : [];
+            setItems(records.filter(item => String(item.category || '').toLowerCase().includes('leetcode')));
+        } catch (e) {
+            setError(messageOf(e));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const filtered = useMemo(() => items.filter(item =>
+        `${item.name || ''} ${item.shortDescription || ''} ${item.description || ''}`
+            .toLowerCase().includes(query.toLowerCase())
+    ), [items, query]);
+
+    const addLeetCode = () => {
+        setEditing({
+            name: 'My LeetCode Profile',
+            slug: 'leetcode-profile',
+            category: 'LeetCode Profile',
+            shortDescription: 'I practice Data Structures and Algorithms using Java.',
+            description: '',
+            liveUrl: '',
+            technologies: ['Java', 'Data Structures', 'Algorithms'],
+            order: 1,
+            featured: false,
+            published: true,
+            cover: null
+        });
+    };
+
+    const remove = async id => {
+        if (!window.confirm('Delete this LeetCode entry? This cannot be undone.')) return;
+        try {
+            await api.delete(`/admin/projects/${id}`);
+            await load();
+            onSaved();
+        } catch (e) {
+            setError(messageOf(e));
+        }
+    };
+
+    return (
+        <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                    <h2 style={{ marginBottom: 6 }}>LeetCode Profile</h2>
+                    <p className="muted" style={{ marginTop: 0 }}>Manage your LeetCode link, screenshot, description, languages, and visibility separately from regular projects.</p>
+                </div>
+                <button type="button" className="btn btn-primary" onClick={addLeetCode}><Plus size={15} /> Add LeetCode details</button>
+            </div>
+
+            <input
+                className="input"
+                style={{ maxWidth: 350, margin: '12px 0' }}
+                placeholder="Search LeetCode entries…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+            />
+
+            {error && <p className="error">{error}</p>}
+
+            {loading ? <p className="muted">Loading LeetCode details…</p> : (
+                <div className="panel table-wrap">
+                    <table className="admin-table">
+                        <thead><tr><th>Profile</th><th>Screenshot</th><th>Status</th><th>Profile link</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {filtered.map(item => {
+                                const imageUrl = typeof item.cover === 'string' ? item.cover : item.cover?.url;
+                                return (
+                                    <tr key={item._id}>
+                                        <td>
+                                            <strong>{item.name || 'LeetCode Profile'}</strong>
+                                            <div className="muted" style={{ fontSize: 12, marginTop: 5 }}>{item.shortDescription || ''}</div>
+                                        </td>
+                                        <td>{imageUrl ? <a href={imageUrl} target="_blank" rel="noreferrer">View image ↗</a> : 'No image'}</td>
+                                        <td>{item.published === false ? 'Draft' : 'Published'}</td>
+                                        <td>{item.liveUrl ? <a href={item.liveUrl} target="_blank" rel="noreferrer">Open profile ↗</a> : 'Not added'}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', gap: 7 }}>
+                                                <button type="button" className="btn" onClick={() => setEditing(item)}>Edit</button>
+                                                <button type="button" className="btn" aria-label="Delete LeetCode entry" onClick={() => remove(item._id)}><Trash2 size={15} /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {!filtered.length && <tr><td colSpan="5" className="muted">No LeetCode entries yet. Click “Add LeetCode details” to create one.</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {editing && (
+                <RecordModal
+                    resource="projects"
+                    initial={editing}
+                    close={() => setEditing(null)}
+                    saved={async () => { setEditing(null); await load(); onSaved(); }}
+                    fieldsOverride={leetcodeFields}
+                    modalTitle="LeetCode Details"
+                    fixedCategory="LeetCode Profile"
+                />
+            )}
+        </>
+    );
+}
+
+function RecordModal({ resource, initial, close, saved, fieldsOverride, modalTitle, fixedCategory }) {
+    const fields = fieldsOverride || configs[resource].fields;
     const [data, setData] = useState({ ...initial });
     const [err, setErr] = useState('');
     const [busy, setBusy] = useState(false);
@@ -371,6 +508,11 @@ function RecordModal({ resource, initial, close, saved }) {
             delete body._id;
             delete body.createdAt;
             delete body.updatedAt;
+
+            if (fixedCategory) {
+                body.category = fixedCategory;
+                if (!body.slug) body.slug = 'leetcode-profile';
+            }
 
             if (initial._id) await api.put(`/admin/${resource}/${initial._id}`, body);
             else await api.post(`/admin/${resource}`, body);
@@ -387,7 +529,7 @@ function RecordModal({ resource, initial, close, saved }) {
         <div onMouseDown={e => e.target === e.currentTarget && close()} style={{ position: 'fixed', inset: 0, zIndex: 10, background: '#000b', display: 'grid', placeItems: 'center', padding: 16 }}>
             <form onSubmit={submit} className="panel" style={{ width: 'min(740px,100%)', maxHeight: '90vh', overflow: 'auto', padding: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2>{initial._id ? 'Edit' : 'Add'} {configs[resource].title}</h2>
+                    <h2>{initial._id ? 'Edit' : 'Add'} {modalTitle || configs[resource].title}</h2>
                     <button type="button" className="btn" onClick={close}><X size={16} /></button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 13 }}>
@@ -450,7 +592,7 @@ function Field({ field, value, onChange }) {
                                     }
                                 }
 
-                                // Keep the existing 40 MB per-file limit.
+                                // Apply the 100 MB per-file limit.
                                 if (file.size > 100 * 1024 * 1024) {
                                     throw new Error(
                                         `${file.name} is larger than 100 MB. Please compress the file and try again.`
@@ -486,7 +628,7 @@ function Field({ field, value, onChange }) {
             {err && <small className="error">{err}</small>}
 
             <small className="muted" style={{ display: 'block', marginTop: 5 }}>
-                Images, video, or PDF. Maximum 40 MB per file. Video file: maximum 3 minutes. Configure Cloudinary on the server.
+                Images, video, or PDF. Maximum 100 MB per file. Video file: maximum 3 minutes. Configure Cloudinary on the server.
             </small>
         </label>
     );
@@ -599,7 +741,7 @@ function Resume({ onSaved }) {
             </label>
             {msg && <p className="notice">{msg}</p>}
             {err && <p className="error">{err}</p>}
-            <p className="muted" style={{ fontSize: 12 }}>PDF is recommended. Maximum upload size is 40 MB. Add Cloudinary credentials to enable uploads.</p>
+            <p className="muted" style={{ fontSize: 12 }}>PDF is recommended. Maximum upload size is 100 MB. Add Cloudinary credentials to enable uploads.</p>
         </section>
     );
 }

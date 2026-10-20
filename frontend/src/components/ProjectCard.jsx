@@ -10,6 +10,9 @@ import { PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function ProjectCard({ project }) {
+    const isLeetCode =
+        `${project.name || ''} ${project.category || ''}`.toLowerCase().includes('leetcode');
+
     // Use the existing admin Documentation URL for the project video
     const documentationUrl =
         project.documentationUrl || project.documentationURL || '';
@@ -45,9 +48,11 @@ export default function ProjectCard({ project }) {
                     height: 210,
                     position: 'relative',
                     overflow: 'hidden',
-                    background: project.cover?.url
-                        ? `center / cover no-repeat url("${project.cover.url}")`
-                        : 'radial-gradient(circle at 70% 20%, #354b32, #111815 65%)',
+                    background: isLeetCode
+                        ? 'radial-gradient(circle at 50% 40%, #26382b, #101411 75%)'
+                        : project.cover?.url
+                            ? `center / cover no-repeat url("${project.cover.url}")`
+                            : 'radial-gradient(circle at 70% 20%, #354b32, #111815 65%)',
                 }}
             >
                 {project.cover?.url ? (
@@ -57,8 +62,10 @@ export default function ProjectCard({ project }) {
                         style={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover',
+                            objectFit: isLeetCode ? 'contain' : 'cover',
                             display: 'block',
+                            boxSizing: 'border-box',
+                            padding: isLeetCode ? 22 : 0,
                             transition: 'transform 0.5s ease',
                         }}
                         onMouseEnter={(e) => {
@@ -317,31 +324,35 @@ export default function ProjectCard({ project }) {
 
 
 
-                    {/* Live Demo */}
+                    {/* Live demo or external profile link */}
                     {project.liveUrl && (
                         <a
-                            className="btn"
+                            className={isLeetCode ? 'btn btn-primary' : 'btn'}
                             href={project.liveUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            aria-label="Open live project demo"
-                            title="View Live Demo 🚀"
+                            aria-label={isLeetCode ? 'Open LeetCode profile' : 'Open live project demo'}
+                            title={isLeetCode ? 'View LeetCode Profile' : 'View Live Demo'}
                             style={{
-                                width: 43,
-                                height: 43,
-                                padding: 0,
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                gap: 8,
+                                minHeight: 43,
+                                padding: isLeetCode ? '11px 14px' : 0,
+                                width: isLeetCode ? 'auto' : 43,
                                 borderRadius: 10,
                                 border: '1px solid rgba(181,243,107,0.2)',
                                 background: 'rgba(181,243,107,0.07)',
                                 color: '#b5f36b',
-                                fontSize: 20,
+                                fontSize: 13,
+                                fontWeight: 700,
+                                textDecoration: 'none',
                                 transition: 'background 0.2s ease, border-color 0.2s ease',
                             }}
                         >
-                            🚀
+                            {isLeetCode ? 'View LeetCode Profile' : '🚀'}
+                            {isLeetCode && <ExternalLink size={16} />}
                         </a>
                     )}
 

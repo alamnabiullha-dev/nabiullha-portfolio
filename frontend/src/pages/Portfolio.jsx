@@ -1,5 +1,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
+
 import {
   ArrowDown,
   ArrowUpRight,
@@ -184,11 +185,22 @@ export default function Portfolio({ data, loading, error }) {
         item.level === 'college' || item.institution?.includes('SRM')
     ) || education[0];
 
+  const regularProjects = projects.filter(
+    (project) =>
+      !String(project.category || '')
+        .trim()
+        .toLowerCase()
+        .includes('leetcode') &&
+      project.published !== false
+  );
+
   const categories = [
-    ...new Set(projects.map((project) => project.category).filter(Boolean)),
+    ...new Set(
+      regularProjects.map((project) => project.category).filter(Boolean)
+    ),
   ];
 
-  const filteredProjects = projects.filter((project) => {
+  const filteredProjects = regularProjects.filter((project) => {
     const matchesCategory =
       projectCategory === 'All' || project.category === projectCategory;
 
@@ -200,6 +212,8 @@ export default function Portfolio({ data, loading, error }) {
       searchableText.includes(projectSearch.toLowerCase())
     );
   });
+
+
 
   const submit = async (event) => {
     event.preventDefault();
@@ -1084,6 +1098,136 @@ export default function Portfolio({ data, loading, error }) {
           </section>
         )}
 
+
+        {/* LEETCODE PROFILE - MANAGED FROM ADMIN */}
+        <section
+          id="leetcode"
+          className="section"
+          style={{ background: '#0c100d' }}
+        >
+          <div className="container">
+            {(() => {
+              const leetcodeProfile = projects
+                .filter(
+                  (project) =>
+                    String(project.category || '')
+                      .trim()
+                      .toLowerCase() === 'leetcode profile' &&
+                    project.published !== false
+                )
+                .sort(
+                  (a, b) =>
+                    (Number(a.order) || 0) - (Number(b.order) || 0)
+                )[0];
+              if (!leetcodeProfile) return null;
+
+              const coverUrl =
+                typeof leetcodeProfile.cover === 'string'
+                  ? leetcodeProfile.cover
+                  : leetcodeProfile.cover?.url;
+
+              const description =
+                leetcodeProfile.shortDescription ||
+                leetcodeProfile.description ||
+                'My coding journey and problem-solving practice using Java.';
+
+              return (
+                <>
+                  <SectionTitle
+                    number="04"
+                    eyebrow="Java · DSA · Problem Solving"
+                    title="My LeetCode Journey."
+                    desc={description}
+                  />
+
+                  <motion.article
+                    variants={fadeUp}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.15 }}
+                    className="panel"
+                    style={{
+                      maxWidth: 850,
+                      margin: '0 auto',
+                      overflow: 'hidden',
+                      borderRadius: 18,
+                      border: '1px solid rgba(181,243,107,0.2)',
+                      background:
+                        'linear-gradient(145deg, #151c18, #101411)',
+                    }}
+                  >
+                    {coverUrl && (
+                      <div
+                        style={{
+                          padding: 18,
+                          background:
+                            'radial-gradient(circle, #26382b, #101411 75%)',
+                        }}
+                      >
+                        <img
+                          src={coverUrl}
+                          alt="LeetCode profile screenshot"
+                          loading="lazy"
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            maxHeight: 420,
+                            objectFit: 'contain',
+                            borderRadius: 12,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div style={{ padding: 26, textAlign: 'center' }}>
+                      <Code2 size={42} color={ACCENT} />
+
+                      <h3 style={{ fontSize: 24, marginTop: 12 }}>
+                        {leetcodeProfile.name || 'LeetCode Profile'}
+                      </h3>
+
+                      <p
+                        className="muted"
+                        style={{
+                          fontSize: 14,
+                          lineHeight: 1.85,
+                          whiteSpace: 'pre-line',
+                          maxWidth: 650,
+                          margin: '12px auto 0',
+                        }}
+                      >
+                        {leetcodeProfile.description ||
+                          leetcodeProfile.shortDescription ||
+                          'I practice Data Structures and Algorithms using Java to improve my problem-solving skills.'}
+                      </p>
+
+                      {leetcodeProfile.liveUrl && (
+                        <a
+                          href={leetcodeProfile.liveUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginTop: 20,
+                          }}
+                        >
+                          View My LeetCode Profile
+                          <ExternalLink size={16} />
+                        </a>
+                      )}
+                    </div>
+                  </motion.article>
+                </>
+              );
+            })()}
+          </div>
+        </section>
+
+
+
         {/* CONTACT */}
         {settings.sectionVisibility?.contact !== false && (
           <section className="section" id="contact">
@@ -1273,6 +1417,8 @@ export default function Portfolio({ data, loading, error }) {
           )}
         </AnimatePresence>
       </main>
+
+
 
       {/* FOOTER */}
       <footer
