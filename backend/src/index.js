@@ -36,18 +36,33 @@ app.use(
     })
 );
 
-const allowed = (
-    env.CLIENT_ORIGIN || 'http://127.0.0.1:5180'
-)
-    .split(',')
-    .map(x => x.trim());
+const allowed = [
+    env.CLIENT_ORIGIN,
+    'https://nabiullha-portfolio.vercel.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5180',
+]
+    .filter(Boolean)
+    .flatMap(origin => origin.split(','))
+    .map(origin => origin.trim().replace(/\/+$/, ''));
+
 app.use(
     cors({
-        origin: (origin, cb) =>
-            !origin || allowed.includes(origin)
-                ? cb(null, true)
-                : cb(new Error('Origin not allowed')),
-        credentials: true
+        origin: (origin, cb) => {
+            if (!origin) {
+                return cb(null, true);
+            }
+
+            const normalizedOrigin = origin.replace(/\/+$/, '');
+
+            if (allowed.includes(normalizedOrigin)) {
+                return cb(null, true);
+            }
+
+            console.error('Origin not allowed:', origin);
+            return cb(new Error('Origin not allowed'));
+        },
+        credentials: true,
     })
 );
 
