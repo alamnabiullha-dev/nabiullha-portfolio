@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const api = axios.create({
   baseURL: API_URL || 'http://localhost:5002/api',
   withCredentials: true,
-  timeout: 6000,
+  timeout: 60000,
 });
 
 let csrfPromise = null;
@@ -86,3 +86,4 @@ export const messageOf = (error) =>
   'Something went wrong. Please try again.';
 
 export default api;
+
